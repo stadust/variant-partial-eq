@@ -1,0 +1,5 @@
+error: #[derive(VariantPartialEq)] only supports structs with names fields
+ --> tests/ui/fail/unnamed-struct-fields.rs:4:15
+  |
+4 | struct Unnamed(String, u32);
+  |               ^^^^^^^^^^^^^

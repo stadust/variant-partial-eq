@@ -1,0 +1,7 @@
+error: #[derive(VariantPartialEq)] only works for structs
+ --> tests/ui/fail/fail-on-enum.rs:3:10
+  |
+3 | #[derive(VariantPartialEq)]
+  |          ^^^^^^^^^^^^^^^^
+  |
+  = note: this error originates in the derive macro `VariantPartialEq` (in Nightly builds, run with -Z macro-backtrace for more info)

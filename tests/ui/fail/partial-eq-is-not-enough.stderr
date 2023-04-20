@@ -1,0 +1,14 @@
+error[E0597]: `s` does not live long enough
+  --> tests/ui/fail/partial-eq-is-not-enough.rs:43:44
+   |
+37 |     let s = "Hello World!".to_string();
+   |         - binding `s` declared here
+...
+43 |         concrete_thunk: Thunk::Unprocessed(s.as_ref())
+   |                                            ^^^^^^^^^^
+   |                                            |
+   |                                            borrowed value does not live long enough
+   |                                            argument requires that `s` is borrowed for `'static`
+...
+47 | }
+   | - `s` dropped here while still borrowed
