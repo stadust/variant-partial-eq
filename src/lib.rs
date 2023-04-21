@@ -120,13 +120,11 @@
 
 extern crate proc_macro;
 use proc_macro::TokenStream;
-use proc_macro2::Span;
+use proc_macro2::{Ident, Span};
+use proc_macro2::TokenStream as TokenStream2;
 
 use quote::{quote, quote_spanned};
-use syn::{
-    parse_macro_input, spanned::Spanned, AttrStyle, Attribute, Data, DeriveInput, Expr, ExprLit,
-    Field, Fields, GenericParam, Lifetime, Lit, Meta, Path,
-};
+use syn::{parse_macro_input, spanned::Spanned, AttrStyle, Attribute, Data, DeriveInput, Expr, ExprLit, Field, Fields, GenericParam, Lifetime, Lit, Meta, Path, TypeParam};
 
 /// Derive macro for `PartialEq` implementations that play nicely with invariant lifetimes
 ///
@@ -148,34 +146,56 @@ pub fn variant_partial_eq(input: TokenStream) -> TokenStream {
     };
 
     let mut lifetimes = Vec::new();
+    let mut types = Vec::new();
 
     for generic in input.generics.params {
         match generic {
-            GenericParam::Type(_) | GenericParam::Const(_)  => return quote_spanned!{
-                generic.span() => compile_error!("#[derive(VariantPartialEq)] does not work with non-lifetime parameters");
+            GenericParam::Const(const_param)  => return quote_spanned!{
+                const_param.span() => compile_error!("#[derive(VariantPartialEq)] does not support const generics");
             }.into(),
-            GenericParam::Lifetime(lifetime) => lifetimes.push(lifetime.lifetime)
+            GenericParam::Type(ty) => {
+                if !ty.bounds.is_empty() {
+                    return quote_spanned!{
+                        ty.bounds.span() => compile_error!("#[derive(VariantPartialEq)] does not support lifetime bounds");
+                    }.into()
+                }
+
+                types.push(ty);
+            }
+            GenericParam::Lifetime(lifetime) => {
+                if !lifetime.bounds.is_empty() {
+                    return quote_spanned!{
+                        lifetime.bounds.span() => compile_error!("#[derive(VariantPartialEq)] does not support lifetime bounds");
+                    }.into()
+                }
+
+                lifetimes.push(lifetime.lifetime)
+            }
         }
     }
 
-    if lifetimes.is_empty() {
-        return quote_spanned!{
-            Span::call_site() => compile_error!("struct has no lifetimes. Please use #[derive(PartialEq)] instead");
-        }.into();
-    }
-
     let struct_name = input.ident;
-    let duped_lifetime_names = duplicate_lifetimes(&lifetimes);
-    let duped_lifetimes = duped_lifetime_names
-        .iter()
-        .map(|lt| syn::Lifetime::new(lt, Span::call_site()))
-        .collect::<Vec<_>>();
+
+    let duped_lifetime_list = duplicate_lifetimes(&lifetimes);
+    let (duped_type_param_list, where_clause) = duplicate_type_params(&types);
+
+    // need to string our given type parameters of any defaults
+    let mut given_type_params = TokenStream2::new();
+
+    for ty in types {
+        let orig_span = ty.span();
+        let clone = TypeParam::from(ty.ident);
+
+        given_type_params.extend(quote_spanned!(orig_span => #clone,));
+    }
 
     let comparisons = comparisons(named_fields.named.iter());
 
     let tokens = quote! {
-        impl<#(#lifetimes),*, #(#duped_lifetimes),*> PartialEq<#struct_name<#(#duped_lifetimes),*>> for #struct_name<#(#lifetimes),*> {
-            fn eq(&self, other: &#struct_name<#(#duped_lifetimes),*>) -> bool {
+        impl<#duped_lifetime_list #(#lifetimes,)* #duped_type_param_list #given_type_params> PartialEq<#struct_name<#duped_lifetime_list #duped_type_param_list>> for #struct_name<#(#lifetimes,)* #given_type_params>
+        #where_clause
+        {
+            fn eq(&self, other: &#struct_name<#duped_lifetime_list #duped_type_param_list>) -> bool {
                 #(
                     #comparisons
                 )&&*
@@ -239,12 +259,13 @@ fn comparison_from_attribute(
                 return Some(quote_spanned!(str_lit.span() => {compile_error!("Malformed #[variant_compare = \"...\"] attribute, expected path to comparison function"); true}))
             };
 
-            // At this point, we know that the attributes is #[variant_compare = path::to::cmp::func]
+            // At this point, we know that the attributes is #[variant_compare = "path::to::cmp::func"]
             let field_name = field.ident.as_ref().unwrap();
-            let call = quote_spanned!(str_lit.span() => #path);
-            let arguments = quote_spanned!(field.span() => (&self.#field_name, &other.#field_name));
 
-            return Some(quote! { #call #arguments });
+            let mut comparison = quote_spanned!(str_lit.span() => #path);
+            comparison.extend(quote_spanned!(field.span() => (&self.#field_name, &other.#field_name)));
+
+            return Some(comparison);
         }
 
         return Some(
@@ -256,8 +277,8 @@ fn comparison_from_attribute(
 }
 
 /// Duplicates the given lifetimes
-fn duplicate_lifetimes(lifetimes: &[Lifetime]) -> Vec<String> {
-    let mut new_lifetimes = Vec::new();
+fn duplicate_lifetimes(lifetimes: &[Lifetime]) -> TokenStream2 {
+    let mut lifetime_list = TokenStream2::new();
 
     for lifetime in lifetimes {
         let mut derived_lifetime = format!("'{}_", lifetime.ident);
@@ -273,10 +294,48 @@ fn duplicate_lifetimes(lifetimes: &[Lifetime]) -> Vec<String> {
             break;
         }
 
-        new_lifetimes.push(derived_lifetime)
+        let lifetime = Lifetime::new(&derived_lifetime, Span::call_site());
+        lifetime_list.extend(quote!(#lifetime,));
     }
 
-    new_lifetimes
+    lifetime_list
+}
+
+/// Duplicates the given type parameters
+fn duplicate_type_params(type_params: &[TypeParam]) -> (TokenStream2, TokenStream2) {
+    let mut param_list = TokenStream2::new();
+    let mut where_clause = TokenStream2::new();
+
+    for ty_param in type_params {
+        let mut derived_param = format!("{}_", ty_param.ident);
+
+        'outer: loop {
+            for ty in type_params {
+                if ty.ident == derived_param {
+                    derived_param.push('_');
+                    continue 'outer;
+                }
+            }
+
+            break;
+        }
+
+        let orig = TypeParam::from(ty_param.ident.clone());
+        let param  = TypeParam::from(Ident::new(&derived_param, Span::call_site()));
+
+        param_list.extend(quote!(#param,));
+        where_clause.extend(quote_spanned!(ty_param.ident.span() => #orig));
+        where_clause.extend(quote!{:});
+        where_clause.extend(quote!{PartialEq<#param>,});
+    }
+
+    if !where_clause.is_empty() {
+        where_clause = quote! {
+            where #where_clause
+        };
+    }
+
+    (param_list, where_clause)
 }
 
 #[cfg(test)]

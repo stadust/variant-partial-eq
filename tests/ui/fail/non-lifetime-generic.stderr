@@ -1,5 +1,0 @@
-error: #[derive(VariantPartialEq)] does not work with non-lifetime parameters
- --> tests/ui/fail/non-lifetime-generic.rs:5:17
-  |
-5 | struct MyStruct<T> {
-  |                 ^

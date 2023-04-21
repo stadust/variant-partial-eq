@@ -1,0 +1,11 @@
+error: #[derive(VariantPartialEq)] does not support const generics
+ --> tests/ui/fail/const-generics.rs:5:17
+  |
+5 | struct MyStruct<const N: u8> {
+  |                 ^^^^^
+
+error[E0747]: constant provided when a type was expected
+ --> tests/ui/fail/const-generics.rs:6:24
+  |
+6 |     ghost: PhantomData<N>
+  |                        ^

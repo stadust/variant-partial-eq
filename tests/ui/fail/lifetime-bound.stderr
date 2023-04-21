@@ -1,0 +1,5 @@
+error: #[derive(VariantPartialEq)] does not support lifetime bounds
+ --> tests/ui/fail/lifetime-bound.rs:5:25
+  |
+5 | struct MyStruct<'a, 'b: 'a> {
+  |                         ^^
