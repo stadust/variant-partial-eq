@@ -120,11 +120,14 @@
 
 extern crate proc_macro;
 use proc_macro::TokenStream;
-use proc_macro2::{Ident, Span};
 use proc_macro2::TokenStream as TokenStream2;
+use proc_macro2::{Ident, Span};
 
 use quote::{quote, quote_spanned};
-use syn::{parse_macro_input, spanned::Spanned, AttrStyle, Attribute, Data, DeriveInput, Expr, ExprLit, Field, Fields, GenericParam, Lifetime, Lit, Meta, Path, TypeParam};
+use syn::{
+    parse_macro_input, spanned::Spanned, AttrStyle, Attribute, Data, DeriveInput, Expr, ExprLit,
+    Field, Fields, GenericParam, Lifetime, Lit, Meta, Path, TypeParam,
+};
 
 /// Derive macro for `PartialEq` implementations that play nicely with invariant lifetimes
 ///
@@ -263,7 +266,8 @@ fn comparison_from_attribute(
             let field_name = field.ident.as_ref().unwrap();
 
             let mut comparison = quote_spanned!(str_lit.span() => #path);
-            comparison.extend(quote_spanned!(field.span() => (&self.#field_name, &other.#field_name)));
+            comparison
+                .extend(quote_spanned!(field.span() => (&self.#field_name, &other.#field_name)));
 
             return Some(comparison);
         }
@@ -321,12 +325,12 @@ fn duplicate_type_params(type_params: &[TypeParam]) -> (TokenStream2, TokenStrea
         }
 
         let orig = TypeParam::from(ty_param.ident.clone());
-        let param  = TypeParam::from(Ident::new(&derived_param, Span::call_site()));
+        let param = TypeParam::from(Ident::new(&derived_param, Span::call_site()));
 
         param_list.extend(quote!(#param,));
         where_clause.extend(quote_spanned!(ty_param.ident.span() => #orig));
-        where_clause.extend(quote!{:});
-        where_clause.extend(quote!{PartialEq<#param>,});
+        where_clause.extend(quote! {:});
+        where_clause.extend(quote! {PartialEq<#param>,});
     }
 
     if !where_clause.is_empty() {
