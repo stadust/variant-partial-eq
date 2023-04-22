@@ -1,5 +1,7 @@
 # A #[derive] macro for PartialEq implementations that ignore lifetime variance
 
+[![codecov](https://codecov.io/gh/stadust/variant-partial-eq/branch/main/graph/badge.svg?token=RCZUJ3YVD2)](https://codecov.io/gh/stadust/variant-partial-eq)
+
 Consider a type such as 
 
 ```rust
