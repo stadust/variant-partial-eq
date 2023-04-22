@@ -49,7 +49,7 @@ jobs:
           args: grcov
 
       - name: Generate coverage report
-        run: grcov ./target/tests/trybuild/variant_partial_eq/ -s src --binary-path ./target/tests/trybuild/debug/deps/ -t lcov --ignore-not-existing -o ./target/debug/coverage.lcov
+        run: grcov ./target/tests/trybuild/variant_partial_eq/ -s . --binary-path ./target/tests/trybuild/debug/deps/ -t lcov --ignore-not-existing -o ./target/debug/coverage.lcov --keep-only "src/*"
 
       - name: Upload coverage report
         uses: codecov/codecov-action@v3
