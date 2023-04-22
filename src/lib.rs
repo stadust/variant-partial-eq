@@ -283,7 +283,10 @@ fn comparison_from_attribute(
 /// Duplicates the given lifetimes
 fn duplicate_lifetimes(lifetimes: &[Lifetime]) -> TokenStream2 {
     let mut lifetime_list = TokenStream2::new();
-    let mut unavailable_lifetimes = lifetimes.iter().map(|lt| lt.to_string()).collect::<Vec<_>>();
+    let mut unavailable_lifetimes = lifetimes
+        .iter()
+        .map(|lt| lt.to_string())
+        .collect::<Vec<_>>();
 
     for lifetime in lifetimes {
         let mut derived_lifetime = format!("'{}_", lifetime.ident);
