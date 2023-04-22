@@ -1,0 +1,5 @@
+error: #[derive(VariantPartialEq)] does not support type bounds
+ --> tests/ui/fail/type-bound.rs:5:20
+  |
+5 | struct MyStruct<T: PartialEq> {
+  |                    ^^^^^^^^^

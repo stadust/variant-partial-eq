@@ -159,7 +159,7 @@ pub fn variant_partial_eq(input: TokenStream) -> TokenStream {
             GenericParam::Type(ty) => {
                 if !ty.bounds.is_empty() {
                     return quote_spanned!{
-                        ty.bounds.span() => compile_error!("#[derive(VariantPartialEq)] does not support lifetime bounds");
+                        ty.bounds.span() => compile_error!("#[derive(VariantPartialEq)] does not support type bounds");
                     }.into()
                 }
 
@@ -283,6 +283,7 @@ fn comparison_from_attribute(
 /// Duplicates the given lifetimes
 fn duplicate_lifetimes(lifetimes: &[Lifetime]) -> TokenStream2 {
     let mut lifetime_list = TokenStream2::new();
+
 
     for lifetime in lifetimes {
         let mut derived_lifetime = format!("'{}_", lifetime.ident);
